@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/shopping-cart.png" type="image/png">	
+
+<title>Einkaufsliste</title>
+
+<style>
+*{box-sizing:border-box;}
+body{
+  font-family:system-ui;
+  max-width:700px;
+  margin:auto;
+  padding:12px;
+  background:#f2f2f2;
+  font-size:18px;
+}
+h1{text-align:center;}
+
+.toolbar{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+button{
+  flex:1;
+  padding:12px;
+  border:none;
+  border-radius:10px;
+  background:#2c7;
+  color:white;
+  cursor:pointer;
+}
+input.search{
+  width:100%;
+  padding:10px;
+  border-radius:10px;
+  border:1px solid #ccc;
+}
+
+ul{
+  background:white;
+  padding:5px;
+  border-radius:12px;
+}
+
+li{
+  list-style:none;
+  padding:10px;
+  display:flex;
+  gap:6px;
+  cursor:pointer;
+}
+
+li.done span:nth-child(2){
+  text-decoration:line-through;
+  color:#999;
+}
+
+.bullet{
+  width:24px;
+  text-align:center;
+  cursor:pointer;
+}
+
+input.edit{
+  display:none;
+  flex:1;
+}
+
+li.edit span{display:none;}
+li.edit input.edit{display:inline;}
+	
+/* Bilder togglen */	
+#qr, #lutz {
+  display: none;
+}
+
+#toggle:checked + #qr {
+  display: block;
+}
+#toggle:checked + #lutz {
+  display: block;
+}
+	
+	
+</style>
+</head>
+
+<body>
+
+<h1>🛒 Einkaufsliste</h1>
+
+<div class="toolbar">
+  <input class="search" placeholder="🔍 suchen..." oninput="filterItems(this.value)">
+  <button onclick="clearDone()">🗑 erledigte löschen</button>
+ <!-- <button onclick="logout()">🚪 Logout</button> -->
+
+</div>
+
+<h4>ALDI</h4>
+<ul id="aldi"></ul>
+
+<h4>Kaufland</h4>
+<input type="checkbox" id="toggle">
+<img id="qr" src="img/kauflandqrcode.jpeg" alt="QR-Code" style="max-width: 30%; height: auto;">QR-Code</img>
+<ul id="kaufland"></ul>
+
+<h4>Markt</h4>
+<ul id="markt"></ul>
+
+<h4>LIDL</h4>
+<ul id="lidl"></ul>
+
+<h4>Lutz</h4>
+<input type="checkbox" id="toggle">
+<img id="lutz" src="img/lutz.jpg" alt="Lutz" style="max-width: 100%; height: auto;">Kundennummer</img>
+	
+<script>
+
+let dragged = null;
+
+// ITEM ERSTELLEN
+function createItem(text="", done=false, list="", id=null){
+  const li = document.createElement("li")
+  li.draggable = true
+
+  if(id) li.dataset.id = id
+  li.dataset.list = list
+
+  li.innerHTML = `
+    <span class="bullet">${done ? "✅" : "⬜"}</span>
+    <span>${text || "Neuer Artikel"}</span>
+    <input class="edit" value="${text}">
+  `
+
+  if(done) li.classList.add("done")
+  if(!text) li.dataset.new = true
+
+  const bullet = li.querySelector(".bullet")
+
+  // ✅ DONE TOGGLE
+  bullet.onclick = e => {
+    e.stopPropagation()
+    if(li.dataset.new) return
+
+    li.classList.toggle("done")
+    bullet.textContent = li.classList.contains("done") ? "✅" : "⬜"
+
+    updateItem(li)
+  }
+
+  // ✏️ EDIT
+  li.onclick = () => {
+    li.classList.add("edit")
+    const input = li.querySelector("input")
+    input.focus()
+    input.select()
+  }
+
+  const input = li.querySelector("input")
+
+  input.onblur = () => {
+    li.classList.remove("edit")
+
+    if(input.value === ""){
+      if(li.dataset.id){
+        deleteItem(li.dataset.id)
+      }
+      li.remove()
+      return
+    }
+
+    li.querySelector("span:nth-child(2)").textContent = input.value
+
+    if(!li.dataset.id){
+      addItem(li, input.value)
+    } else {
+      updateItem(li)
+    }
+
+    if(li.dataset.new){
+      delete li.dataset.new
+      addNew(li.parentNode)
+    }
+  }
+
+  input.onkeydown = e => {
+    if(e.key === "Enter") input.blur()
+  }
+
+  // DRAG
+  li.ondragstart = () => dragged = li
+
+  return li
+}
+
+// ➕ NEUES FELD
+function addNew(ul){
+  ul.prepend(createItem("", false, ul.id))
+}
+
+// 🌐 LOAD
+async function load(){
+  const res = await fetch("api.php?action=load")
+  const items = await res.json()
+
+  document.querySelectorAll("ul").forEach(ul => ul.innerHTML = "")
+
+  items.forEach(item=>{
+    const ul = document.getElementById(item.list)
+    if(!ul) return
+
+    ul.appendChild(
+      createItem(item.text, item.done == 1, item.list, item.id)
+    )
+  })
+
+  document.querySelectorAll("ul").forEach(ul=>{
+    ul.ondragover = e => e.preventDefault()
+    ul.ondrop = e => {
+      e.preventDefault()
+      ul.appendChild(dragged)
+      updateItem(dragged)
+    }
+
+    addNew(ul)
+  })
+}
+
+// ➕ ADD API
+function addItem(li, text){
+  fetch("api.php?action=add", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      text: text,
+      list: li.parentNode.id,
+      pos: 0
+    })
+  })
+  .then(res=>res.text())
+  .then(id=>{
+    li.dataset.id = id
+  })
+}
+
+// ✏️ UPDATE API
+function updateItem(li){
+  fetch("api.php?action=update", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      id: li.dataset.id,
+      text: li.querySelector("span:nth-child(2)").textContent,
+      done: li.classList.contains("done") ? 1 : 0,
+      list: li.parentNode.id,
+      pos: 0
+    })
+  })
+}
+
+// 🗑 DELETE API
+function deleteItem(id){
+  fetch("api.php?action=delete", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({id})
+  })
+}
+
+// 🗑 erledigte löschen
+function clearDone(){
+  document.querySelectorAll("li.done").forEach(li=>{
+    if(li.dataset.id){
+      deleteItem(li.dataset.id)
+    }
+    li.remove()
+  })
+}
+
+// 🔍 FILTER
+function filterItems(text){
+  text = text.toLowerCase()
+
+  document.querySelectorAll("li").forEach(li=>{
+    const name = li.querySelector("span:nth-child(2)").textContent.toLowerCase()
+    li.style.display = name.includes(text) ? "" : "none"
+  })
+}
+
+// START
+load()
+
+</script>
+
+</body>
+</html>
