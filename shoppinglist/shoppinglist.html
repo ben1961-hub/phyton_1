@@ -132,8 +132,7 @@ input.edit {
 <div class="toolbar">
   <input class="search" placeholder="🔍 suchen..." oninput="filterItems(this.value)">
   <button onclick="clearDone()">🗑 erledigte löschen</button>
- <!-- <button onclick="logout()">🚪 Logout</button> -->
-
+  <button onclick="toggleDone()">👁️ Erledigte anzeigen</button>
 </div>
 
 <h4 onclick="toggleList('aldi')">ALDI</h4>
@@ -163,7 +162,7 @@ input.edit {
 <script>
 let dragged = null;
 
-// ITEM ERSTELLEN
+// ITEM ERSTELLEN ------------------
 function createItem(text="", done=false, list="", id=null){
   const li = document.createElement("li")
   li.draggable = true
@@ -182,7 +181,7 @@ function createItem(text="", done=false, list="", id=null){
 
   const bullet = li.querySelector(".bullet")
 
-  // ✅ DONE TOGGLE
+  // DONE TOGGLE ------------------
   bullet.onclick = e => {
     e.stopPropagation()
     if(li.dataset.new) return
@@ -193,7 +192,7 @@ function createItem(text="", done=false, list="", id=null){
     updateItem(li)
   }
 
-  // ✏️ EDIT
+  // EDIT ------------------
   li.onclick = () => {
     li.classList.add("edit")
     const input = li.querySelector("input")
@@ -247,18 +246,20 @@ function createItem(text="", done=false, list="", id=null){
   return li
 }
 
-// ➕ NEUES FELD
+// NEUES FELD ------------------
 function addNew(ul){
   ul.prepend(createItem("", false, ul.id))
 }
 
-// 🌐 LOAD
+// LOAD  ----------------------
 async function load(){
   const res = await fetch("api.php?action=load")
   const items = await res.json()
 
+  // Alle Listen leeren
   document.querySelectorAll("ul").forEach(ul => ul.innerHTML = "")
 
+  // Items einfügen
   items.forEach(item=>{
     const ul = document.getElementById(item.list)
     if(!ul) return
@@ -268,6 +269,7 @@ async function load(){
     )
   })
 
+  // Drag & Drop + neue Eingabefelder
   document.querySelectorAll("ul").forEach(ul=>{
     ul.ondragover = e => e.preventDefault()
     ul.ondrop = e => {
@@ -277,14 +279,26 @@ async function load(){
     }
 
     addNew(ul)
-	  
   })
-  document.querySelectorAll("ul").forEach(ul => {
-	sortList(ul)
-  })	
-}
 
-// ➕ ADD API
+  // Sortieren (offene nach oben)  ------------------
+  document.querySelectorAll("ul").forEach(ul=>{
+    sortList(ul)
+  })
+
+  // 👉 NEU: erledigte ausblenden, Eingabefelder bleiben sichtbar
+  document.querySelectorAll("li").forEach(li => {
+    if(li.classList.contains("done") && !li.dataset.new){
+      li.style.display = "none"
+    } else {
+      li.style.display = ""
+    }
+  })
+	
+  showDone = false	
+}
+	
+// ADD API ------------------
 function addItem(li, text){
   fetch("api.php?action=add", {
     method:"POST",
@@ -301,7 +315,7 @@ function addItem(li, text){
   })
 }
 
-// ✏️ UPDATE API
+// UPDATE API ------------------
 function updateItem(li){
   fetch("api.php?action=update", {
     method:"POST",
@@ -316,7 +330,7 @@ function updateItem(li){
   })
 }
 
-// 🗑 DELETE API
+// 🗑 DELETE API ------------------
 function deleteItem(id){
   fetch("api.php?action=delete", {
     method:"POST",
@@ -325,7 +339,7 @@ function deleteItem(id){
   })
 }
 
-// 🗑 erledigte löschen
+// 🗑 erledigte löschen ------------------
 function clearDone(){
   document.querySelectorAll("li.done").forEach(li=>{
     if(li.dataset.id){
@@ -336,7 +350,7 @@ function clearDone(){
   })
 }
 
-// 🔍 FILTER
+// FILTER ------------------
 function filterItems(text){
   text = text.toLowerCase()
 
@@ -346,13 +360,14 @@ function filterItems(text){
   })
 }
 
+// Duplikate markieren  ------------------
 function markDuplicates(){
   const map = {}
 
   document.querySelectorAll("li").forEach(li=>{
     let text = li.querySelector("span:nth-child(2)").textContent.trim().toLowerCase()
 
-    // 👉 Platzhalter ignorieren
+    // Platzhalter ignorieren
     if(!text || text === "___________________") return
 
     if(!map[text]){
@@ -376,6 +391,7 @@ function markDuplicates(){
   })
 }
 
+// Liste sortieren ------------------
 function sortList(ul){
   const items = Array.from(ul.querySelectorAll("li"))
 
@@ -390,11 +406,13 @@ function sortList(ul){
   items.forEach(item => ul.appendChild(item))
 }
 	
+// Liste toggeln ------------------
 function toggleList(id){
   document.getElementById(id).classList.toggle("hidden")
 }	
 
 
+// Login ------------------
 async function login(){
   const user = document.getElementById("user").value
   const pass = document.getElementById("pass").value
@@ -415,7 +433,8 @@ async function login(){
     document.getElementById("error").textContent = "❌ Falsche Zugangsdaten"
   }
 }	
-	
+
+//Login pruefen ------------------
 async function checkLogin(){
   const res = await fetch("api.php?action=check")
   const data = await res.json()
@@ -428,12 +447,56 @@ async function checkLogin(){
 }
 	
 	
-// START
+// Erledigte anzeigen ------------------
+let showDone = false
+
+function toggleDone(){
+  showDone = !showDone
+
+  document.querySelectorAll("li").forEach(li => {
+    // 👉 Eingabefelder IMMER sichtbar lassen
+    if(li.dataset.new) {
+      li.style.display = ""
+      return
+    }
+
+    // 👉 erledigte ein-/ausblenden
+    if(li.classList.contains("done")){
+      li.style.display = showDone ? "" : "none"
+    } else {
+      li.style.display = ""
+    }
+  })
+}
+	
+// Text des Buttons "Erledigte anzeigen" togglen ------------------
+function toggleDone(){
+  showDone = !showDone
+
+  event.target.textContent = showDone 
+    ? "🙈 Erledigte ausblenden" 
+    : "👁️ Erledigte anzeigen"
+
+  document.querySelectorAll("li").forEach(li => {
+    if(li.dataset.new) {
+      li.style.display = ""
+      return
+    }
+
+    if(li.classList.contains("done")){
+      li.style.display = showDone ? "" : "none"
+    } else {
+      li.style.display = ""
+    }
+  })
+}	
+	
+	
+// START ------------------
 checkLogin()
 	
+// Dupliakte markieren	 ------------------
 markDuplicates()
-	
-	
 </script>
 
 </div>
