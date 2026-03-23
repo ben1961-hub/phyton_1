@@ -2,8 +2,9 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <link rel="icon" href="img/shopping-cart.png" type="image/png">	
+<meta name="apple-mobile-web-app-capable" content="yes">
 
 <title>Einkaufsliste</title>
 
@@ -16,7 +17,9 @@ body{
   padding:12px;
   background:#f2f2f2;
   font-size:18px;
+  overflow-x: hidden;
 }
+	
 h1{text-align:center;}
 
 .toolbar{
@@ -78,21 +81,54 @@ li.edit input.edit{display:inline;}
   display: none;
 }
 
-#toggle:checked + #qr {
+	
+#toggle-kaufland:checked + #qr {
   display: block;
 }
-#toggle:checked + #lutz {
+
+#toggle-lutz:checked + #lutz {
   display: block;
 }
 	
+/* Duplikate */
+li.duplicate {
+  background: #ffb3b3;
+}
+	
+	
+li span:nth-child(2) {
+  flex: 1;
+  min-width: 0;           /* WICHTIG für Flexbox */
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+	
+input.edit {
+  flex: 1;
+  min-width: 0;
+}	
+	
+.hidden {
+  display: none;
+}
 	
 </style>
 </head>
 
 <body>
 
+<div id="loginBox">
+  <h3>🔐 Login</h3>
+  <input id="user" placeholder="Benutzername">
+  <input id="pass" type="password" placeholder="Passwort">
+  <button onclick="login()">Login</button>
+  <p id="error" style="color:red;"></p>
+</div>
+
+<div id="app" style="display:none;">	
+	
 <h1>🛒 Einkaufsliste</h1>
-<p>Test GIT</p>
+
 <div class="toolbar">
   <input class="search" placeholder="🔍 suchen..." oninput="filterItems(this.value)">
   <button onclick="clearDone()">🗑 erledigte löschen</button>
@@ -100,26 +136,31 @@ li.edit input.edit{display:inline;}
 
 </div>
 
-<h4>ALDI</h4>
+<h4 onclick="toggleList('aldi')">ALDI</h4>
 <ul id="aldi"></ul>
 
-<h4>Kaufland</h4>
-<input type="checkbox" id="toggle">
+<h4 onclick="toggleList('kaufland')">Kaufland</h4>
+<input type="checkbox" id="toggle-kaufland">
 <img id="qr" src="img/kauflandqrcode.jpeg" alt="QR-Code" style="max-width: 30%; height: auto;">QR-Code</img>
 <ul id="kaufland"></ul>
 
-<h4>Markt</h4>
+<h4 onclick="toggleList('markt')">Markt</h4>
 <ul id="markt"></ul>
 
-<h4>LIDL</h4>
+<h4 onclick="toggleList('lidl')">LIDL</h4>
 <ul id="lidl"></ul>
 
-<h4>Lutz</h4>
-<input type="checkbox" id="toggle">
-<img id="lutz" src="img/lutz.jpg" alt="Lutz" style="max-width: 100%; height: auto;">Kundennummer</img>
+<h4 onclick="toggleList('dm')">DM</h4>
+<ul id="dm"></ul>
 	
-<script>
+<h4>Lutz</h4>
+<input type="checkbox" id="toggle-lutz">
+<img id="lutz" src="img/lutz.jpg" alt="Lutz" style="max-width: 100%; height: auto;">Kundennummer</img>
 
+<h4 onclick="toggleList('andere')">Andere</h4>
+<ul id="andere"></ul>
+
+<script>
 let dragged = null;
 
 // ITEM ERSTELLEN
@@ -132,7 +173,7 @@ function createItem(text="", done=false, list="", id=null){
 
   li.innerHTML = `
     <span class="bullet">${done ? "✅" : "⬜"}</span>
-    <span>${text || "Neuer Artikel"}</span>
+    <span>${text || "___________________"}</span>
     <input class="edit" value="${text}">
   `
 
@@ -156,6 +197,13 @@ function createItem(text="", done=false, list="", id=null){
   li.onclick = () => {
     li.classList.add("edit")
     const input = li.querySelector("input")
+	input.oninput = () => {
+	// Text im Span live aktualisieren
+	li.querySelector("span:nth-child(2)").textContent = input.value
+
+  // Duplikate sofort prüfen
+  markDuplicates()
+}	
     input.focus()
     input.select()
   }
@@ -179,12 +227,14 @@ function createItem(text="", done=false, list="", id=null){
       addItem(li, input.value)
     } else {
       updateItem(li)
+	  markDuplicates()	
     }
 
     if(li.dataset.new){
       delete li.dataset.new
       addNew(li.parentNode)
     }
+	markDuplicates()
   }
 
   input.onkeydown = e => {
@@ -227,7 +277,11 @@ async function load(){
     }
 
     addNew(ul)
+	  
   })
+  document.querySelectorAll("ul").forEach(ul => {
+	sortList(ul)
+  })	
 }
 
 // ➕ ADD API
@@ -278,6 +332,7 @@ function clearDone(){
       deleteItem(li.dataset.id)
     }
     li.remove()
+	markDuplicates()
   })
 }
 
@@ -291,10 +346,96 @@ function filterItems(text){
   })
 }
 
-// START
-load()
+function markDuplicates(){
+  const map = {}
 
+  document.querySelectorAll("li").forEach(li=>{
+    let text = li.querySelector("span:nth-child(2)").textContent.trim().toLowerCase()
+
+    // 👉 Platzhalter ignorieren
+    if(!text || text === "___________________") return
+
+    if(!map[text]){
+      map[text] = []
+    }
+    map[text].push(li)
+  })
+
+  // Reset
+  document.querySelectorAll("li").forEach(li=>{
+    li.classList.remove("duplicate")
+  })
+
+  // Markieren
+  Object.values(map).forEach(group=>{
+    if(group.length > 1){
+      group.forEach(li=>{
+        li.classList.add("duplicate")
+      })
+    }
+  })
+}
+
+function sortList(ul){
+  const items = Array.from(ul.querySelectorAll("li"))
+
+  items.sort((a, b) => {
+    const aDone = a.classList.contains("done")
+    const bDone = b.classList.contains("done")
+
+    // Nicht erledigt (false) kommt vor erledigt (true)
+    return aDone - bDone
+  })
+
+  items.forEach(item => ul.appendChild(item))
+}
+	
+function toggleList(id){
+  document.getElementById(id).classList.toggle("hidden")
+}	
+
+
+async function login(){
+  const user = document.getElementById("user").value
+  const pass = document.getElementById("pass").value
+
+  const res = await fetch("api.php?action=login", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({user, pass})
+  })
+
+  const data = await res.json()
+
+  if(data.success){
+    document.getElementById("loginBox").style.display = "none"
+    document.getElementById("app").style.display = "block"
+    load()
+  } else {
+    document.getElementById("error").textContent = "❌ Falsche Zugangsdaten"
+  }
+}	
+	
+async function checkLogin(){
+  const res = await fetch("api.php?action=check")
+  const data = await res.json()
+
+  if(data.loggedIn){
+    document.getElementById("loginBox").style.display = "none"
+    document.getElementById("app").style.display = "block"
+    load()
+  }
+}
+	
+	
+// START
+checkLogin()
+	
+markDuplicates()
+	
+	
 </script>
 
+</div>
 </body>
 </html>
