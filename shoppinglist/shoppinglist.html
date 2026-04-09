@@ -27,6 +27,7 @@ h1{text-align:center;}
   flex-wrap:wrap;
   gap:8px;
 }
+
 button{
   flex:1;
   padding:12px;
@@ -49,12 +50,41 @@ ul{
   border-radius:12px;
 }
 
-li{
-  list-style:none;
-  padding:10px;
-  display:flex;
-  gap:6px;
-  cursor:pointer;
+/* Standard Flex-Setup */
+li {
+  display: flex;
+  gap: 6px;           /* Abstand Bullet → Text */
+  align-items: center; /* vertikal zentrieren */
+  padding: 10px;
+  margin-bottom: 4px;  /* Abstand zwischen Listenpunkten (Desktop) */
+}
+
+/* Mobile Anpassung für Smartphones */
+@media (max-width: 600px) {
+  .bullet {
+    width: 40px;
+    font-size: 30px;
+  }
+  
+  li {
+    gap: 12px;         /* Abstand Bullet → Text größer */
+    margin-bottom: 8px; /* Abstand zwischen den Listenelementen größer */
+    align-items: center;
+  }
+}
+
+/* Sehr kleine Geräte <400px */
+@media (max-width: 400px) {
+  .bullet {
+    width: 44px;
+    font-size: 32px;
+  }
+  
+  li {
+    gap: 14px;
+    margin-bottom: 10px; /* noch mehr Abstand für sehr kleine Screens */
+    align-items: center;
+  }
 }
 
 li.done span:nth-child(2){
@@ -62,11 +92,21 @@ li.done span:nth-child(2){
   color:#999;
 }
 
-.bullet{
-  width:24px;
-  text-align:center;
-  cursor:pointer;
+/* Groesse nur für Smartphones */
+@media (max-width: 600px) {
+  .bullet {
+    width: 40px;       /* Platz für das Emoji und etwas Abstand */
+    font-size: 30px;   /* gut sichtbare Größe für Touch-Bedienung */
+  }
 }
+
+/* Basis-Definition für Desktop / Tablets */
+.bullet {
+  width: 24px;
+  text-align: center;
+  cursor: pointer;
+}
+
 
 input.edit{
   display:none;
