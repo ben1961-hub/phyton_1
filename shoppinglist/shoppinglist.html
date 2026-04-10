@@ -157,7 +157,9 @@ input.edit {
 
 <body>
 
-<div id="loginBox">
+<div id="loading">⏳ Lade...</div>
+
+<div id="loginBox" style="display:none">
   <h3>🔐 Login</h3>
   <input id="user" placeholder="Benutzername">
   <input id="pass" type="password" placeholder="Passwort">
@@ -165,8 +167,8 @@ input.edit {
   <p id="error" style="color:red;"></p>
 </div>
 
-<div id="app" style="display:none;">	
-	
+<div id="app" style="display:none;">
+
 <h1>🛒 Einkaufsliste</h1>
 
 <div class="toolbar">
@@ -180,7 +182,7 @@ input.edit {
 
 <h4 onclick="toggleList('kaufland')">Kaufland</h4>
 <input type="checkbox" id="toggle-kaufland">
-<img id="qr" src="img/kauflandqrcode.jpeg" alt="QR-Code" style="max-width: 30%; height: auto;">QR-Code</img>
+<img id="qr" src="img/kauflandqrcode.jpeg" alt="QR-Code" style="max-width: 70%; height: auto;">QR-Code</img>
 <ul id="kaufland"></ul>
 
 <h4 onclick="toggleList('markt')">Markt</h4>
@@ -201,6 +203,91 @@ input.edit {
 
 <script>
 let dragged = null;
+
+document.addEventListener("DOMContentLoaded", init);
+async function init(){
+  await silentLogin();
+}
+
+async function silentLogin(){
+  try {
+    const res = await fetch("api.php?action=check", {
+      credentials: "include"
+    });
+
+    const data = await res.json();
+
+    if(data.loggedIn){
+      showApp();
+      await load();
+    } else {
+      showLogin();
+    }
+
+  } catch(e){
+    console.error("Silent Login Fehler:", e);
+    showLogin();
+  }
+}
+
+// Login ------------------
+async function login(){
+  const user = document.getElementById("user").value;
+  const pass = document.getElementById("pass").value;
+
+  const res = await fetch("api.php?action=login", {
+    method: "POST",
+    credentials: "include",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({user, pass})
+  });
+
+  const data = await res.json();
+
+  if(data.success){
+    showApp();
+    await load();
+  } else {
+    document.getElementById("error").textContent = "❌ Falsche Zugangsdaten";
+  }
+}
+
+async function checkLogin(){
+  try {
+    const res = await fetch("api.php?action=check", {
+      credentials: "include"
+    });
+
+    const data = await res.json();
+
+    document.getElementById("loading").style.display = "none";
+
+    if(data.loggedIn){
+      document.getElementById("app").style.display = "block";
+      load();
+    } else {
+      document.getElementById("loginBox").style.display = "block";
+    }
+
+  } catch(e){
+    console.error("Login-Check Fehler:", e);
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("loginBox").style.display = "block";
+  }
+}
+
+
+function showApp(){
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("app").style.display = "block";
+}
+
+function showLogin(){
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("loginBox").style.display = "block";
+  document.getElementById("app").style.display = "none";
+}
 
 // ITEM ERSTELLEN ------------------
 function createItem(text="", done=false, list="", id=null){
@@ -293,7 +380,7 @@ function addNew(ul){
 
 // LOAD  ----------------------
 async function load(){
-  const res = await fetch("api.php?action=load")
+  const res = await fetch("api.php?action=load", { credentials: "include" })
   const items = await res.json()
 
   // Alle Listen leeren
@@ -342,6 +429,7 @@ async function load(){
 function addItem(li, text){
   fetch("api.php?action=add", {
     method:"POST",
+    credentials: "include",
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({
       text: text,
@@ -359,6 +447,7 @@ function addItem(li, text){
 function updateItem(li){
   fetch("api.php?action=update", {
     method:"POST",
+    credentials: "include",
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({
       id: li.dataset.id,
@@ -374,6 +463,7 @@ function updateItem(li){
 function deleteItem(id){
   fetch("api.php?action=delete", {
     method:"POST",
+    credentials: "include",
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({id})
   })
@@ -451,42 +541,6 @@ function toggleList(id){
   document.getElementById(id).classList.toggle("hidden")
 }	
 
-
-// Login ------------------
-async function login(){
-  const user = document.getElementById("user").value
-  const pass = document.getElementById("pass").value
-
-  const res = await fetch("api.php?action=login", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({user, pass})
-  })
-
-  const data = await res.json()
-
-  if(data.success){
-    document.getElementById("loginBox").style.display = "none"
-    document.getElementById("app").style.display = "block"
-    load()
-  } else {
-    document.getElementById("error").textContent = "❌ Falsche Zugangsdaten"
-  }
-}	
-
-//Login pruefen ------------------
-async function checkLogin(){
-  const res = await fetch("api.php?action=check")
-  const data = await res.json()
-
-  if(data.loggedIn){
-    document.getElementById("loginBox").style.display = "none"
-    document.getElementById("app").style.display = "block"
-    load()
-  }
-}
-	
-	
 // Erledigte anzeigen ------------------
 let showDone = false
 
