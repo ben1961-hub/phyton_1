@@ -1,4 +1,21 @@
 <?php
+header('Content-Type: application/json');
+
+// Cookie für 30 Tage gültig
+$lifetime = 30 * 24 * 60 * 60; // 30 Tage in Sekunden
+
+// Server-seitige Session-Lifetime auf 30 Tage setzen
+ini_set('session.gc_maxlifetime', $lifetime);
+
+session_set_cookie_params([
+    'lifetime' => $lifetime,   // Dauer
+    'path' => '/',              // überall gültig
+    'domain' => '',             // leer = aktuelle Domain
+    'secure' => false,          // true wenn HTTPS
+    'httponly' => true,         // JS kann Cookie nicht lesen
+    'samesite' => 'Lax'         // Cross-Site Sicherheit
+]);
+
 session_start();
 $data = json_decode(file_get_contents("php://input"), true);
 $action = $_GET['action'] ?? '';
@@ -22,15 +39,15 @@ if($action === "logout"){
     exit;
 }
 
-if(!isset($_SESSION['login'])){
-    echo json_encode([]);
+if($action === "check"){
+    echo json_encode([
+        "loggedIn" => !empty($_SESSION['login'])
+    ]);
     exit;
 }
 
-if($action === "check"){
-    echo json_encode([
-        "loggedIn" => isset($_SESSION['login'])
-    ]);
+if(!isset($_SESSION['login'])){
+    echo json_encode([]);
     exit;
 }
 
