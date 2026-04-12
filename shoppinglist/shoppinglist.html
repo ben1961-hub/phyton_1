@@ -22,6 +22,13 @@ body{
 	
 h1{text-align:center;}
 
+h1.alert {
+  background: #f37171;
+  color: white;
+  padding: 10px;
+  border-radius: 10px;
+}
+
 .toolbar{
   display:flex;
   flex-wrap:wrap;
@@ -110,6 +117,7 @@ li.done span:nth-child(2){
 
 input.edit{
   display:none;
+  font-size: 16px; /* wichtig gegen iOS-Zoom */
   flex:1;
 }
 
@@ -423,6 +431,7 @@ async function load(){
   })
 	
   showDone = false	
+  updateHeaderAlert()
 }
 	
 // ADD API ------------------
@@ -440,6 +449,7 @@ function addItem(li, text){
   .then(res=>res.text())
   .then(id=>{
     li.dataset.id = id
+    updateHeaderAlert()
   })
 }
 
@@ -457,6 +467,7 @@ function updateItem(li){
       pos: 0
     })
   })
+  .then(() => updateHeaderAlert())
 }
 
 // 🗑 DELETE API ------------------
@@ -478,6 +489,7 @@ function clearDone(){
     li.remove()
 	markDuplicates()
   })
+  updateHeaderAlert()  
 }
 
 // FILTER ------------------
@@ -585,7 +597,22 @@ function toggleDone(){
   })
 }	
 	
-	
+function updateHeaderAlert(){
+  const hasOpen = Array.from(document.querySelectorAll("li"))
+    .some(li => 
+      !li.classList.contains("done") && !li.dataset.new
+    )
+
+  const h1 = document.querySelector("h1")
+
+  if(hasOpen){
+    h1.classList.add("alert")
+  } else {
+    h1.classList.remove("alert")
+  }
+}	
+
+
 // START ------------------
 checkLogin()
 	
