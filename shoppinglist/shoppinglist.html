@@ -4,8 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <link rel="icon" href="img/shopping-cart.png" type="image/png">	
-<meta name="apple-mobile-web-app-capable" content="yes">
-
+<meta name="mobile-web-app-capable" content="yes">
 <title>Einkaufsliste</title>
 
 <style>
@@ -156,9 +155,20 @@ input.edit {
   min-width: 0;
 }	
 	
-.hidden {
-  display: none;
+ul {
+    display: block;
+    background: white;
+    padding: 5px;
+    border-radius: 12px;
 }
+
+.hidden {
+    display: none !important;
+}
+	
+h4[contenteditable="true"] {
+    color: blue;
+}	
 	
 </style>
 </head>
@@ -185,28 +195,43 @@ input.edit {
   <button onclick="toggleDone()">👁️ Erledigte anzeigen</button>
 </div>
 
-<h4 onclick="toggleList('aldi')">ALDI</h4>
-<ul id="aldi"></ul>
-
+<h4 onclick="toggleList('aldi', this)">ALDI</h4>
+<ul id="aldi" class="hidden"></ul>
 <h4 onclick="toggleList('kaufland')">Kaufland</h4>
-<input type="checkbox" id="toggle-kaufland">
-<img id="qr" src="img/kauflandqrcode.jpeg" alt="QR-Code" style="max-width: 70%; height: auto;">QR-Code</img>
-<ul id="kaufland"></ul>
+<div id="kaufland-extra" class="hidden">
+    <input type="checkbox" id="toggle-kaufland">
+    <img id="qr"
+         src="img/kauflandqrcode.jpeg"
+         alt="QR-Code"
+         style="max-width:70%;height:auto;">
+</div>
+<ul id="kaufland" class="hidden"></ul>
 
-<h4 onclick="toggleList('markt')">Markt</h4>
+<h4 onclick="toggleList('markt', this)">Markt</h4>
 <ul id="markt"></ul>
 
-<h4 onclick="toggleList('lidl')">LIDL</h4>
+<h4 onclick="toggleList('lidl', this)">LIDL</h4>
 <ul id="lidl"></ul>
 
-<h4 onclick="toggleList('dm')">DM</h4>
+<h4 onclick="toggleList('dm', this)">DM</h4>
 <ul id="dm"></ul>
-	
-<h4>Lutz</h4>
-<input type="checkbox" id="toggle-lutz">
-<img id="lutz" src="img/lutz.jpg" alt="Lutz" style="max-width: 100%; height: auto;">Kundennummer</img>
 
-<h4 onclick="toggleList('andere')">Andere</h4>
+	
+<h4 onclick="toggleList('lutz')">Lutz</h4>
+<div id="lutz-extra" class="hidden">
+    <img src="img/lutz.jpg" alt="Lutz" style="max-width: 100%; height: auto;">
+    Kundennummer
+</div>
+	
+<!--
+<h4 onclick="toggleList('lutz')">Lutz</h4>
+<div id="lutz-extra" class="hidden">
+    <img src="img/lutz.jpg" alt="Lutz" style="max-width: 100%; height: auto;">
+    Kundennummer
+</div>
+-->
+	
+<h4 onclick="toggleList('andere', this)">Andere</h4>
 <ul id="andere"></ul>
 
 <script>
@@ -298,7 +323,7 @@ function showLogin(){
 }
 
 // ITEM ERSTELLEN ------------------
-function createItem(text="", done=false, list="", id=null){
+function createItem(text="", done=false, list="", id=null) {
   const li = document.createElement("li")
   li.draggable = true
 
@@ -352,7 +377,10 @@ function createItem(text="", done=false, list="", id=null){
         deleteItem(li.dataset.id)
       }
       li.remove()
-      return
+			
+			updateListVisibility(li.parentNode)			
+      
+			return
     }
 
     li.querySelector("span:nth-child(2)").textContent = input.value
@@ -368,7 +396,9 @@ function createItem(text="", done=false, list="", id=null){
       delete li.dataset.new
       addNew(li.parentNode)
     }
-	markDuplicates()
+		updateListVisibility(li.parentNode)		
+		
+		markDuplicates()
   }
 
   input.onkeydown = e => {
@@ -379,6 +409,16 @@ function createItem(text="", done=false, list="", id=null){
   li.ondragstart = () => dragged = li
 
   return li
+} // createItem
+
+
+function updateListVisibility(ul) {
+  const items = [...ul.querySelectorAll("li")]
+
+  // Nur echte Einträge zählen, nicht das leere Eingabe-LI
+  const hasRealItem = items.some(li => !li.dataset.new)
+
+  ul.hidden = !hasRealItem
 }
 
 // NEUES FELD ------------------
@@ -421,7 +461,7 @@ async function load(){
     sortList(ul)
   })
 
-  // 👉 NEU: erledigte ausblenden, Eingabefelder bleiben sichtbar
+  // erledigte ausblenden, Eingabefelder bleiben sichtbar
   document.querySelectorAll("li").forEach(li => {
     if(li.classList.contains("done") && !li.dataset.new){
       li.style.display = "none"
@@ -432,6 +472,14 @@ async function load(){
 	
   showDone = false	
   updateHeaderAlert()
+	
+	document.querySelectorAll("ul").forEach(ul => {
+		const hasRealItem = [...ul.querySelectorAll("li")]
+			.some(li => !li.dataset.new)
+
+		ul.classList.toggle("hidden", !hasRealItem)
+	});
+
 }
 	
 // ADD API ------------------
@@ -549,9 +597,30 @@ function sortList(ul){
 }
 	
 // Liste toggeln ------------------
-function toggleList(id){
-  document.getElementById(id).classList.toggle("hidden")
-}	
+function toggleList(id, element) {
+    // Liste ein-/ausblenden
+    const list = document.getElementById(id);
+    if (list != null) {
+        list.classList.toggle("hidden");
+    }
+
+    // Falls vorhanden: Zusatzbereich ein-/ausblenden
+    const extra = document.getElementById(id + "-extra");
+    if (extra) {
+        extra.classList.toggle("hidden");
+    }
+
+    // Nur bei den erlaubten Überschriften editieren
+    if (["aldi", "markt", "lidl", "dm", "andere"].includes(id)) {
+        if (element.dataset.clicked === "true") {
+            element.contentEditable = "true";
+            element.focus();
+            element.dataset.clicked = "editing";
+        } else {
+            element.dataset.clicked = "true";
+        }
+    }
+}
 
 // Erledigte anzeigen ------------------
 let showDone = false
